@@ -14,6 +14,3 @@
 
 // 无法载入配置文件报错文本
 #define ERRORLOADCONFIGFILEMSG L"备份提醒程序遇到异常：无法载入配置文件！"
-
-// 提醒窗口的窗口标题
-#define WINDOWSTITLE L"备份提醒"

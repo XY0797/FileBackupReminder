@@ -4,9 +4,11 @@
 #define WIN32_LEAN_AND_MEAN
 // Windows头文件
 #include <windows.h>
+#include <shlobj.h>
 
 // 字符串处理
 #include <string>
+#include <regex>
 
 // 时间处理
 #include <chrono>
@@ -30,8 +32,14 @@ HWND hwnd;
 #define IDC_FIRST_LABEL 114
 #define IDC_NOTIFICATION_LABEL 514
 
+// 是否即将退出
+bool willExit;
+
 // 当前目录
 std::wstring CurrentDir;
+
+// 桌面路径
+std::string DesktopPath;
 
 //-----------配置文件-----------
 
@@ -53,10 +61,12 @@ std::string backup_7z_folder;
 std::string backup_7z_name;
 
 // 提醒窗口标题
-std::string remind_title;
+std::string remind_titleA;
+std::wstring remind_titleW;
 
 // 提醒窗口内容
 // %0表示压缩文件的文件名(含后缀)
-std::string remind_content;
+std::string remind_contentA;
+std::wstring remind_contentW;
 
 //--------配置文件-----结束-----

@@ -24,6 +24,23 @@ std::string wstr2astr(const std::wstring& wstr) {
 	return strTo;
 }
 
+std::wstring astr2wstr(const std::string& str) {
+	char* charBuffer = new char[str.length() + 1];
+	charBuffer[str.length()] = 0;
+	for (size_t i = 0; i < str.length(); i++)
+	{
+		charBuffer[i] = str[i];
+	}
+	int wideCharLen = MultiByteToWideChar(CP_ACP, 0, charBuffer, -1, nullptr, 0);
+	wchar_t* wideCharBuffer = new wchar_t[wideCharLen + 1];
+	MultiByteToWideChar(CP_ACP, 0, charBuffer, -1, wideCharBuffer, wideCharLen);
+	wideCharBuffer[wideCharLen] = 0;
+	std::wstring tmpwstr(wideCharBuffer);
+	delete[] wideCharBuffer;
+	delete[] charBuffer;
+	return tmpwstr;
+}
+
 bool preproceConfigFiles(const std::wstring& filename) {
 	std::ifstream fin(filename);
 	if (fin.good()) {
@@ -86,6 +103,20 @@ void refreshCurDir() {
 	{
 		// 输出错误信息
 		MessageBox(NULL, ERRORWORKDIRMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+		willExit = true;
+		PostQuitMessage(0); // 退出程序
+	}
+	PWSTR pszPath;
+	if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, NULL, &pszPath))) {
+		std::wstring tmp = pszPath;
+		DesktopPath = wstr2astr(tmp);
+		// 释放内存
+		CoTaskMemFree(pszPath);
+	}
+	else {
+		// 输出错误信息
+		MessageBox(NULL, ERRORWORKDIRMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+		willExit = true;
 		PostQuitMessage(0); // 退出程序
 	}
 }
@@ -112,24 +143,54 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                       _In_opt_ HINSTANCE hPrevInstance,
                       _In_ LPWSTR    lpCmdLine,
                       _In_ int       nCmdShow) {
+	willExit = false;
 	// 刷新当前工作目录
 	refreshCurDir();
 
 	// 预处理配置文件
 	std::wstring inifilenameW = CurrentDir + L"\\setting.ini";
-	if (preproceConfigFiles(inifilenameW)) {
+	if (!willExit && preproceConfigFiles(inifilenameW)) {
 		// 解析配置
 		std::string inifilenameA = wstr2astr(inifilenameW);
 		inifile::IniFile ini;
 		if (ini.Load(inifilenameA) != RET_OK) {
 			// 输出错误信息
 			MessageBox(NULL, ERRORLOADCONFIGFILEMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+			willExit = true;
 			PostQuitMessage(0); // 退出程序
 		}
 		else {
-			// 读取配置内容
-			ini.GetStringValueOrDefault("MSGSetting", "remind_content", &remind_content, R"(测试)");
-			MessageBoxA(NULL, remind_content.c_str(), "读取配置", 0);
+			// 读取配置内容：
+
+			// 上一次提醒时间
+			ini.GetIntValueOrDefault("TimeSetting", "last_time", &last_time, 0);
+
+			// 提醒间隔时间，单位为天
+			ini.GetIntValueOrDefault("TimeSetting", "remind_interval", &remind_interval, 0);
+
+			// 备份文件夹路径
+			ini.GetStringValueOrDefault("PathSetting", "backup_folder", &backup_folder, R"(D:\backup)");
+
+			// 压缩后保存路径(路径结尾必须含\)
+			// %0表示桌面
+			ini.GetStringValueOrDefault("PathSetting", "backup_7z_folder", &backup_7z_folder, R"(%0)");
+			std::regex pattern0(R"(%0)");
+			backup_7z_folder = std::regex_replace(backup_7z_folder, pattern0, DesktopPath + "\\");
+
+			// 压缩后保存文件名(不含后缀)
+			// %0表示yyyymmdd的日期，%1表示HHMMSS的时分秒
+			ini.GetStringValueOrDefault("PathSetting", "backup_7z_name", &backup_7z_name, R"(backup_%0%1)");
+
+			// 提醒窗口标题
+			ini.GetStringValueOrDefault("MSGSetting", "remind_title", &remind_titleA, R"(备份提醒)");
+			remind_titleW = astr2wstr(remind_titleA);
+
+			// 提醒窗口内容
+			// %0表示压缩文件的文件名(含后缀)
+			ini.GetStringValueOrDefault("MSGSetting", "remind_content", &remind_contentA, R"(请备份桌面的\n%0\n到网盘)");
+			std::regex patternn(R"(\\n)");
+			remind_contentA = std::regex_replace(remind_contentA, patternn, "\r\n");
+			//remind_contentW = astr2wstr(remind_contentA);
 		}
 	}
 
@@ -142,7 +203,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	RegisterClass(&wc);
 
 	// 创建窗口
-	hwnd = CreateWindowEx(WS_EX_TOPMOST, CLASS_NAME, WINDOWSTITLE, WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 416, 306, NULL, NULL, hInstance, NULL);
+	hwnd = CreateWindowEx(WS_EX_TOPMOST, CLASS_NAME, remind_titleW.c_str(), WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 416, 306, NULL, NULL, hInstance, NULL);
 
 	if (hwnd == NULL) {
 		return 0;
