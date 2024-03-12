@@ -248,63 +248,81 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	// 预处理配置文件
 	std::wstring inifilenameW = CurrentDirW + L"\\setting.ini";
 	if (!willExit && preproceConfigFiles(inifilenameW)) {
-		// 解析配置
-		std::string inifilenameA = wstr2astr(inifilenameW);
-		inifile::IniFile ini;
-		if (ini.Load(inifilenameA) != RET_OK) {
-			// 输出错误信息
-			MessageBox(NULL, ERRORLOADCONFIGFILEMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+		try
+		{
+			// 解析配置
+			std::string inifilenameA = wstr2astr(inifilenameW);
+			inifile::IniFile ini;
+			if (ini.Load(inifilenameA) != RET_OK) {
+				// 输出错误信息
+				MessageBox(NULL, ERRORLOADCONFIGFILEMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+				throw std::runtime_error("error");
+			}
+			else {
+				// 读取配置内容：
+
+				// 上一次提醒时间
+				std::string timeStr;
+				ini.GetStringValueOrDefault("TimeSetting", "last_time", &timeStr, "0");
+				last_time = stoll(timeStr);
+
+				// 提醒间隔时间，单位为天
+				int remind_interval_day;
+				ini.GetIntValueOrDefault("TimeSetting", "remind_interval", &remind_interval_day, 0);
+				remind_interval = (long long)remind_interval_day * 86400LL;
+
+				// 备份文件夹路径(路径结尾必须含\)
+				// %0表示程序所在目录(结尾含\)
+				std::regex pattern0(R"(%0)");
+				ini.GetStringValueOrDefault("PathSetting", "backup_folder", &backup_folder, R"(%0)");
+				backup_folder = std::regex_replace(backup_folder, pattern0, CurrentDirA + "\\");
+
+				// 压缩后保存路径(路径结尾必须含\)
+				// %0表示桌面(结尾含\)
+				ini.GetStringValueOrDefault("PathSetting", "backup_7z_folder", &backup_7z_folder, R"(%0)");
+				backup_7z_folder = std::regex_replace(backup_7z_folder, pattern0, DesktopPathA + "\\");
+
+				// 压缩后保存文件名(不含后缀)
+				// %0表示yyyymmdd的日期，%1表示HHMMSS的时分秒
+				ini.GetStringValueOrDefault("PathSetting", "backup_7z_name", &backup_7z_name, R"(backup_%0%1)");
+
+				// 压缩等级，范围为0 - 9，0表示最快但体积最大，9表示最慢但体积最小
+				ini.GetIntValueOrDefault("7ZSetting", "7z_compression_level", &the7z_compression_level, 5);
+				if (the7z_compression_level < 0) { the7z_compression_level = 0; }
+				if (the7z_compression_level > 9) { the7z_compression_level = 9; }
+
+				// 密码，留空表示不加密
+				ini.GetStringValueOrDefault("7ZSetting", "7z_password", &the7z_password, "");
+
+				// 提醒窗口标题
+				ini.GetStringValueOrDefault("MSGSetting", "remind_title", &remind_titleA, R"(备份提醒)");
+				remind_titleW = astr2wstr(remind_titleA);
+
+				// 提醒窗口内容
+				// %0表示压缩文件的文件名(含后缀)
+				ini.GetStringValueOrDefault("MSGSetting", "remind_content", &remind_contentA, R"(请备份桌面的\n%0\n到网盘)");
+				std::regex patternn(R"(\\n)");
+				remind_contentA = std::regex_replace(remind_contentA, patternn, "\r\n");
+
+				// 处理last_time为0的情况
+				if (last_time < 1) {
+					last_time = getCurTimeStamp();
+					std::string curtime_str = std::to_string(last_time);
+					if (ini.SetStringValue("TimeSetting", "last_time", curtime_str) != RET_OK) {
+						MessageBox(NULL, ERRORWRITECONFIGFILEMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+						throw std::runtime_error("error");
+					}
+					if (ini.Save() != RET_OK) {
+						MessageBox(NULL, ERRORWRITECONFIGFILEMSG, L"错误", MB_ICONERROR | MB_SETFOREGROUND);
+						throw std::runtime_error("error");
+					}
+				}
+			}
+		}
+		catch (const std::exception&)
+		{
 			willExit = true;
 			PostQuitMessage(0); // 退出程序
-		}
-		else {
-			// 读取配置内容：
-
-			// 上一次提醒时间
-			std::string timeStr;
-			ini.GetStringValueOrDefault("TimeSetting", "last_time", &timeStr, "0");
-			last_time = stoll(timeStr);
-			if (last_time < 1) {
-				last_time = getCurTimeStamp();
-			}
-
-			// 提醒间隔时间，单位为天
-			int remind_interval_day;
-			ini.GetIntValueOrDefault("TimeSetting", "remind_interval", &remind_interval_day, 0);
-			remind_interval = (long long)remind_interval_day * 86400LL;
-
-			// 备份文件夹路径(路径结尾必须含\)
-			// %0表示程序所在目录(结尾含\)
-			std::regex pattern0(R"(%0)");
-			ini.GetStringValueOrDefault("PathSetting", "backup_folder", &backup_folder, R"(%0)");
-			backup_folder = std::regex_replace(backup_folder, pattern0, CurrentDirA + "\\");
-
-			// 压缩后保存路径(路径结尾必须含\)
-			// %0表示桌面(结尾含\)
-			ini.GetStringValueOrDefault("PathSetting", "backup_7z_folder", &backup_7z_folder, R"(%0)");
-			backup_7z_folder = std::regex_replace(backup_7z_folder, pattern0, DesktopPathA + "\\");
-
-			// 压缩后保存文件名(不含后缀)
-			// %0表示yyyymmdd的日期，%1表示HHMMSS的时分秒
-			ini.GetStringValueOrDefault("PathSetting", "backup_7z_name", &backup_7z_name, R"(backup_%0%1)");
-
-			// 压缩等级，范围为0 - 9，0表示最快但体积最大，9表示最慢但体积最小
-			ini.GetIntValueOrDefault("7ZSetting", "7z_compression_level", &the7z_compression_level, 5);
-			if (the7z_compression_level < 0) { the7z_compression_level = 0; }
-			if (the7z_compression_level > 9) { the7z_compression_level = 9; }
-
-			// 密码，留空表示不加密
-			ini.GetStringValueOrDefault("7ZSetting", "7z_password", &the7z_password, "");
-
-			// 提醒窗口标题
-			ini.GetStringValueOrDefault("MSGSetting", "remind_title", &remind_titleA, R"(备份提醒)");
-			remind_titleW = astr2wstr(remind_titleA);
-
-			// 提醒窗口内容
-			// %0表示压缩文件的文件名(含后缀)
-			ini.GetStringValueOrDefault("MSGSetting", "remind_content", &remind_contentA, R"(请备份桌面的\n%0\n到网盘)");
-			std::regex patternn(R"(\\n)");
-			remind_contentA = std::regex_replace(remind_contentA, patternn, "\r\n");
 		}
 	}
 
