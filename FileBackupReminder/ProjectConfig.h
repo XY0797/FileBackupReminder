@@ -14,3 +14,9 @@
 
 // 无法载入配置文件报错文本
 #define ERRORLOADCONFIGFILEMSG L"备份提醒程序遇到异常：无法载入配置文件！"
+
+// 无法压缩文件夹
+#define ERRORCOMPRESS L"备份提醒程序遇到异常：无法压缩文件夹！"
+
+// 无法载入配置文件报错文本
+#define ERRORWRITECONFIGFILEMSG L"备份提醒程序遇到异常：无法写入配置到配置文件！"

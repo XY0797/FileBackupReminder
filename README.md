@@ -23,15 +23,24 @@ remind_interval=24
 [PathSetting]
 
 # 备份文件夹路径
-backup_folder=D:\backup
+# %0表示程序所在目录(结尾含\)
+backup_folder=%0
 
 # 压缩后保存路径(路径结尾必须含\)
-# %0表示桌面
+# %0表示桌面(结尾含\)
 backup_7z_folder=%0
 
 # 压缩后保存文件名(不含后缀)
 # %0表示yyyymmdd的日期，%1表示HHMMSS的时分秒
 backup_7z_name=backup_%0%1
+
+[7ZSetting]
+
+# 压缩等级，范围为0-9，0表示最快但体积最大，9表示最慢但体积最小
+7z_compression_level=5
+
+# 密码，留空表示不加密。密码内不得包含双引号、空格、等于号！
+7z_password=
 
 [MSGSetting]
 

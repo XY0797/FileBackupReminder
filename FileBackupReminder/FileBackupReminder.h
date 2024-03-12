@@ -8,6 +8,8 @@
 
 // 字符串处理
 #include <string>
+#include <sstream>
+#include <iomanip>
 #include <regex>
 
 // 时间处理
@@ -36,36 +38,41 @@ HWND hwnd;
 bool willExit;
 
 // 当前目录
-std::wstring CurrentDir;
+std::wstring CurrentDirW;
+std::string CurrentDirA;
 
 // 桌面路径
-std::string DesktopPath;
+std::wstring DesktopPathW;
+std::string DesktopPathA;
 
 //-----------配置文件-----------
 
 // 上一次提醒时间
-int last_time;
+long long last_time;
 
-// 提醒间隔时间，单位为天
-int remind_interval;
+// 提醒间隔时间，单位为秒
+long long remind_interval;
 
 // 备份文件夹路径
 std::string backup_folder;
 
 // 压缩后保存路径(路径结尾必须含\)
-// %0表示桌面
 std::string backup_7z_folder;
 
 // 压缩后保存文件名(不含后缀)
-// %0表示yyyymmdd的日期，%1表示HHMMSS的时分秒
 std::string backup_7z_name;
+
+// 压缩等级，范围为0 - 9，0表示最快但体积最大，9表示最慢但体积最小
+int the7z_compression_level;
+
+// 密码，留空表示不加密
+std::string the7z_password;
 
 // 提醒窗口标题
 std::string remind_titleA;
 std::wstring remind_titleW;
 
 // 提醒窗口内容
-// %0表示压缩文件的文件名(含后缀)
 std::string remind_contentA;
 std::wstring remind_contentW;
 
